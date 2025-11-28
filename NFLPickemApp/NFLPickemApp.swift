@@ -8,10 +8,10 @@
 import SwiftUI
 
 @main
-struct NFLPickemAppApp: App {
+struct NFLPickemApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootTabView()
         }
     }
 }
