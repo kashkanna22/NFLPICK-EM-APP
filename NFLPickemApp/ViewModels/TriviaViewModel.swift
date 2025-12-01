@@ -28,6 +28,13 @@ class TriviaViewModel {
     let maxStrikes: Int = 3
     var triviaWeek: Int? = nil
     
+    // Track if a session is active to guard tab changes
+    private let activeKey = "np_trivia_active"
+    private var isActive: Bool {
+        get { UserDefaults.standard.bool(forKey: activeKey) }
+        set { UserDefaults.standard.set(newValue, forKey: activeKey) }
+    }
+    
     /// Free mode: can user still play a free session today?
     var canPlayFree: Bool {
         !playedToday
@@ -99,6 +106,7 @@ class TriviaViewModel {
         currentQuestion = nil
         strikes = 0
         showingExplanation = false
+        isActive = true
     }
     
     // MARK: - Question generation
@@ -155,6 +163,7 @@ class TriviaViewModel {
 
             if questionsAnsweredInRun >= 5 {
                 currentQuestion = nil
+                isActive = false
                 if !isPaidSession {
                     markPlayedToday()
                     message = "Nice run! Free trivia done for today."
@@ -181,6 +190,7 @@ class TriviaViewModel {
 
             if strikes >= maxStrikes {
                 currentQuestion = nil
+                isActive = false
                 if !isPaidSession {
                     markPlayedToday()
                     message = (message ?? "") + " Free session finished."

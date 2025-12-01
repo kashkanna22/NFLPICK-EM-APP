@@ -24,7 +24,7 @@ class AppState {
     }
     
     var bets: [BetRecord] = []
-
+    
     var favoriteTeamId: String? {
         get { UserDefaults.standard.string(forKey: favoriteTeamKey) }
         set { UserDefaults.standard.set(newValue, forKey: favoriteTeamKey) }
@@ -206,3 +206,4 @@ class AppState {
         return Double(totalWins) / Double(total)
     }
 }
+

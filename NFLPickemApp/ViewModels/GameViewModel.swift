@@ -11,7 +11,7 @@ import Observation
 @Observable
 class GameViewModel {
     var selectedWeek: Int = 1
-    let maxWeek: Int = 23
+    let maxWeek: Int = 22
     private var initializedWeek = false
     
     var isLoading = false
@@ -30,6 +30,20 @@ class GameViewModel {
         games.filter { $0.status == "post" }
     }
 
+    // Week display (regular season number or playoff label)
+    var currentWeekDisplayName: String {
+        playoffWeekName(for: selectedWeek) ?? "Week \(selectedWeek)"
+    }
+
+    func playoffWeekName(for week: Int) -> String? {
+        switch week {
+        case 19: return "Wildcard"
+        case 20: return "Divisional"
+        case 21: return "Conference Championship"
+        case 22: return "Super Bowl"
+        default: return nil
+        }
+    }
     
     let api = NFLAPIService.shared
     let appState: AppState

@@ -55,7 +55,7 @@ struct PicksView: View {
                     }
                 }
             }
-            .navigationTitle("NFL Pick’em")
+            .navigationTitle(viewModel.currentWeekDisplayName)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Jump Week") { showWeekPicker = true }
@@ -95,7 +95,7 @@ struct PicksView: View {
                                         await viewModel.loadGames()
                                     }
                                 }) {
-                                    Text("Week \(w)")
+                                    Text(viewModel.playoffWeekName(for: w) ?? "Week \(w)")
                                         .frame(maxWidth: .infinity)
                                         .padding()
                                         .background(
@@ -151,6 +151,7 @@ struct PicksView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("How Picks Work").font(.title3).bold()
                             Text("• Picks are open only before a game starts.\n• Place a bet by choosing a team and a stake.\n• If your team wins, you earn 2× your stake.\n• If the game ties, your stake is returned (push).\n• You can edit or cancel a pick while the game is still scheduled.")
+                            Text("You start with 10,000 coins.").foregroundColor(.secondary)
                             Text("Tips").font(.headline)
                             Text("Manage your bankroll wisely. Check live, upcoming, and final sections for game status.")
                         }
@@ -198,7 +199,7 @@ struct PicksView: View {
 
 struct GameRow: View {
     let game: Game
-    @State var appState: AppState
+    @Bindable var appState: AppState
     @State private var showSheet = false
     @State private var showEdit = false
     @State private var editStake: Int = 500
@@ -292,13 +293,6 @@ struct GameRow: View {
             // EDIT / CANCEL ROW
             if isScheduled, let bet = existingBet {
                 HStack(spacing: 12) {
-                    Button("Edit Bet") {
-                        editStake = bet.stake
-                        editPick = bet.pickedTeam
-                        showEdit = true
-                    }
-                    .buttonStyle(.bordered)
-                    
                     Button("Cancel Bet", role: .destructive) {
                         appState.cancelBet(id: bet.id, with: [game])
                     }
@@ -328,10 +322,12 @@ struct GameRow: View {
                     .pickerStyle(.segmented)
                     .padding(.horizontal)
                     
-                    Stepper("Stake: \(editStake) coins",
-                            value: $editStake,
-                            in: 100...2_000,
-                            step: 100)
+                    HStack {
+                        Text("Stake:")
+                        TextField("Amount", value: $editStake, formatter: NumberFormatter())
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                     .padding(.horizontal)
                     
                     Spacer()
@@ -401,7 +397,7 @@ struct GameRow: View {
 
 struct PlaceBetSheet: View {
     let game: Game
-    @State var appState: AppState
+    @Bindable var appState: AppState
     @Environment(\.dismiss) var dismiss
     
     @State private var stake: Int = 500
@@ -425,10 +421,12 @@ struct PlaceBetSheet: View {
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
                 
-                Stepper("Stake: \(stake) coins",
-                        value: $stake,
-                        in: 100...2_000,
-                        step: 100)
+                HStack {
+                    Text("Stake:")
+                    TextField("Amount", value: $stake, formatter: NumberFormatter())
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                }
                 .padding(.horizontal)
                 
                 Spacer()
@@ -447,7 +445,7 @@ struct PlaceBetSheet: View {
                         .cornerRadius(12)
                         .padding(.horizontal)
                 }
-                .disabled(pickedTeam == nil || stake > appState.coins)
+                .disabled(pickedTeam == nil || stake <= 0 || stake > appState.coins)
                 
                 Button("Cancel") {
                     dismiss()
@@ -460,3 +458,4 @@ struct PlaceBetSheet: View {
         }
     }
 }
+

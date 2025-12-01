@@ -22,7 +22,7 @@ struct ProfileView: View {
         appState.bets.filter { $0.outcome != .pending }
     }
     
-    private var netProfit: Int {
+    private var netProfitFromBets: Int {
         completedBets.reduce(0) { partial, bet in
             switch bet.outcome {
             case .win:
@@ -33,6 +33,13 @@ struct ProfileView: View {
                 return partial
             }
         }
+    }
+    
+    // Total net including trivia: compare current coins to starting bankroll plus net deposits/withdrawals (none) 
+    private var totalNetIncludingTrivia: Int {
+        // Starting bankroll is 10,000
+        let starting = 10_000
+        return appState.coins - starting
     }
 
     /// Cumulative profit over time based on completed bets
@@ -76,9 +83,13 @@ struct ProfileView: View {
                         .font(.footnote)
                         .foregroundColor(.secondary)
 
-                    Text("Net: \(netProfit >= 0 ? "+\(netProfit)" : "\(netProfit)") coins")
+                    Text("Bets Net: \(netProfitFromBets >= 0 ? "+\(netProfitFromBets)" : "\(netProfitFromBets)") coins")
                         .font(.footnote)
-                        .foregroundColor(netProfit >= 0 ? .green : .red)
+                        .foregroundColor(netProfitFromBets >= 0 ? .green : .red)
+
+                    Text("Total Net (incl. trivia): \(totalNetIncludingTrivia >= 0 ? "+\(totalNetIncludingTrivia)" : "\(totalNetIncludingTrivia)") coins")
+                        .font(.footnote)
+                        .foregroundColor(totalNetIncludingTrivia >= 0 ? .green : .red)
 
                     Divider()
 
@@ -367,3 +378,4 @@ struct HistoryGameRow: View {
         }
     }
 }
+
