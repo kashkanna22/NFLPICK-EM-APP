@@ -8,31 +8,32 @@ import SwiftUI
 
 struct RootTabView: View {
     @State private var appState = AppState()
+    private let gameViewModel: GameViewModel
     @AppStorage("appAppearance") private var appAppearanceRaw: String = AppearanceModel.system.rawValue
     
     private var appAppearance: AppearanceModel { AppearanceModel(rawValue: appAppearanceRaw) ?? .system }
     
+    init() {
+        // Initialize a single shared GameViewModel tied to the same appState instance
+        self.gameViewModel = GameViewModel(appState: AppState())
+    }
+    
     var body: some View {
         ZStack {
-            ThemedBackgroundView(appState: appState)
+            AppAppearanceView(appState: appState)
                 .ignoresSafeArea()
             TabView {
-                PicksView(viewModel: GameViewModel(appState: appState))
+                PicksView(viewModel: gameViewModel)
                     .tabItem {
                         Label("Picks", systemImage: "sportscourt")
                     }
                 
-                TriviaView(viewModel: TriviaViewModel(appState: appState))
+                TriviaView(viewModel: TriviaViewModel(appState: appState, gamesProvider: { gameViewModel.games }))
                     .tabItem {
                         Label("Trivia", systemImage: "questionmark.circle")
                     }
                 
-                StandingsView()
-                    .tabItem {
-                        Label("Standings", systemImage: "list.number")
-                    }
-                
-                HistoryView(appState: $appState)
+                ProfileView(appState: $appState, games: gameViewModel.games)
                     .tabItem {
                         Label("Profile", systemImage: "person.crop.circle")
                     }

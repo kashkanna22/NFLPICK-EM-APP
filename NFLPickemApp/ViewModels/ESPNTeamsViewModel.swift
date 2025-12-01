@@ -26,8 +26,8 @@ struct ESPNTeamsContainer: Codable {
 
 struct ESPNTeamInfo: Codable {
     let id: String
-    let name: String?           // nickname (e.g., "49ers")
-    let displayName: String?    // full (e.g., "San Francisco 49ers")
+    let name: String?
+    let displayName: String?
     let logos: [ESPNImage]?
 }
 
@@ -57,7 +57,7 @@ struct ESPNTeamRecordWrapper: Codable {
 }
 
 struct ESPNTeamRecordItem: Codable {
-    let summary: String?   // e.g., "7-3"
+    let summary: String?
 }
 
 // MARK: - Team Schedule (GET /teams/{teamId}/schedule)
@@ -78,7 +78,7 @@ struct ESPNTeamScheduleCompetition: Codable {
 
 struct ESPNTeamScheduleCompetitor: Codable {
     let team: ESPNTeamScheduleTeam
-    let homeAway: String     // "home" or "away"
+    let homeAway: String
     let score: String?
 }
 
@@ -86,5 +86,3 @@ struct ESPNTeamScheduleTeam: Codable {
     let id: String
     let displayName: String
 }
-
-// Reuse ESPNStatus from your scoreboard models (ESPNModels.swift)

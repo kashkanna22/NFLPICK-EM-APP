@@ -4,6 +4,7 @@
 //
 //  Created by Kashyap Kannajyosula on 11/24/25.
 //
+
 import Foundation
 import Observation
 import SwiftUI
@@ -11,58 +12,63 @@ import SwiftUI
 @MainActor
 @Observable
 class AppState {
-    // Storage keys
+
+    // MARK: - UserDefaults Keys
     private let coinsKey = "np_coins"
     private let betHistoryKey = "np_bet_history"
     private let favoriteTeamKey = "np_favorite_team"
-    
-    // Currency
+
+    // MARK: - Stored Properties
     var coins: Int = 10_000 {
         didSet { UserDefaults.standard.set(coins, forKey: coinsKey) }
     }
     
-    // Bet history (serialized)
-    private var betHistoryData: Data? {
-        get { UserDefaults.standard.data(forKey: betHistoryKey) }
-        set { UserDefaults.standard.set(newValue, forKey: betHistoryKey) }
-    }
-    
-    // Favorite team (ESPN team id or string identifier)
+    var bets: [BetRecord] = []
+
     var favoriteTeamId: String? {
         get { UserDefaults.standard.string(forKey: favoriteTeamKey) }
         set { UserDefaults.standard.set(newValue, forKey: favoriteTeamKey) }
     }
-    
-    var bets: [BetRecord] = []
-    
+
+    // MARK: - Initialization
     init() {
-        // load coins
         if let storedCoins = UserDefaults.standard.object(forKey: coinsKey) as? Int {
             coins = storedCoins
         } else {
             UserDefaults.standard.set(coins, forKey: coinsKey)
         }
-        // load bets
+
         loadBets()
     }
-    
-    private func loadBets() {
-        guard let data = betHistoryData else { return }
-        if let decoded = try? JSONDecoder().decode([BetRecord].self, from: data) {
-            bets = decoded
-        }
+
+    // MARK: - Persistence
+    private var betHistoryData: Data? {
+        get { UserDefaults.standard.data(forKey: betHistoryKey) }
+        set { UserDefaults.standard.set(newValue, forKey: betHistoryKey) }
     }
-    
+
+    private func loadBets() {
+        guard let data = betHistoryData,
+              let decoded = try? JSONDecoder().decode([BetRecord].self, from: data)
+        else { return }
+
+        bets = decoded
+    }
+
     private func persistBets() {
         if let data = try? JSONEncoder().encode(bets) {
             betHistoryData = data
         }
     }
-    
+
+    // MARK: - Place Bet
     func placeBet(on game: Game, pickedTeam: String, stake: Int) {
         guard stake > 0, coins >= stake else { return }
+        // Only allow bets before game starts
+        guard game.status == "pre" else { return }
+
         coins -= stake
-        
+
         let bet = BetRecord(
             id: UUID(),
             gameId: game.id,
@@ -75,74 +81,91 @@ class AppState {
             payout: 0,
             placedAt: Date()
         )
+
         bets.append(bet)
         persistBets()
     }
-    
+
+    // MARK: - Settle Bets
     func settleBets(with games: [Game]) {
         var changed = false
-        
-        for idx in bets.indices {
-            guard bets[idx].outcome == .pending,
-                  let game = games.first(where: { $0.id == bets[idx].gameId }),
+
+        for i in bets.indices {
+            var bet = bets[i]
+
+            // Only settle pending bets
+            guard bet.outcome == .pending else { continue }
+
+            guard let game = games.first(where: { $0.id == bet.gameId }),
                   game.status == "post",
                   let homeScore = game.homeScore,
-                  let awayScore = game.awayScore else { continue }
-            
-            let winningTeam: String
-            if homeScore > awayScore {
-                winningTeam = game.homeTeam
-            } else if awayScore > homeScore {
-                winningTeam = game.awayTeam
-            } else {
-                // tie – refund stake
-                coins += bets[idx].stake
-                bets[idx].outcome = .win
-                bets[idx].payout = bets[idx].stake
+                  let awayScore = game.awayScore
+            else { continue }
+
+            let winner: String
+
+            // Tie = refund stake as a "push"
+            if homeScore == awayScore {
+                coins += bet.stake
+                bet.outcome = .win
+                bet.payout = bet.stake
                 changed = true
+                bets[i] = bet
                 continue
             }
-            
-            if bets[idx].pickedTeam == winningTeam {
-                let reward = bets[idx].stake * 2
+
+            winner = homeScore > awayScore ? game.homeTeam : game.awayTeam
+
+            if bet.pickedTeam == winner {
+                let reward = bet.stake * 2
                 coins += reward
-                bets[idx].outcome = .win
-                bets[idx].payout = reward
+                bet.outcome = .win
+                bet.payout = reward
             } else {
-                bets[idx].outcome = .loss
-                bets[idx].payout = 0
+                bet.outcome = .loss
+                bet.payout = 0
             }
+
             changed = true
+            bets[i] = bet
         }
-        
-        if changed {
-            persistBets()
-        }
+
+        if changed { persistBets() }
     }
-    
+
+    // MARK: - Cancel Bet
     func cancelBet(id: UUID, with games: [Game]) {
-        // Only allow cancel if the game is still pre
         guard let idx = bets.firstIndex(where: { $0.id == id }) else { return }
-        guard let game = games.first(where: { $0.id == bets[idx].gameId }), game.status == "pre" else { return }
-        // refund stake
-        coins += bets[idx].stake
-        // remove bet
+        let bet = bets[idx]
+
+        guard let game = games.first(where: { $0.id == bet.gameId }) else { return }
+
+        // Allow cancel only while game is pre-game
+        guard game.status == "pre" else { return }
+
+        coins += bet.stake
         bets.remove(at: idx)
         persistBets()
     }
-    
+
+    // MARK: - Edit Bet
     func updateBet(id: UUID, newStake: Int? = nil, newPick: String? = nil, with games: [Game]) {
         guard let idx = bets.firstIndex(where: { $0.id == id }) else { return }
-        guard let game = games.first(where: { $0.id == bets[idx].gameId }), game.status == "pre" else { return }
 
-        var updatedStake = bets[idx].stake
-        var updatedPick = bets[idx].pickedTeam
+        let oldBet = bets[idx]
 
-        // adjust stake: refund old stake, then charge new stake if provided
+        guard let game = games.first(where: { $0.id == oldBet.gameId }),
+              game.status == "pre"
+        else { return }
+
+        var updatedStake = oldBet.stake
+        var updatedPick = oldBet.pickedTeam
+
+        // If stake changed
         if let newStake = newStake, newStake > 0 {
-            // refund old
+            // refund old stake
             coins += updatedStake
-            // charge new if affordable
+            // ensure we can afford new stake
             guard coins >= newStake else { return }
             coins -= newStake
             updatedStake = newStake
@@ -152,37 +175,34 @@ class AppState {
             updatedPick = newPick
         }
 
-        // Recreate an updated BetRecord to avoid mutating let properties
-        let existing = bets[idx]
-        let updated = BetRecord(
-            id: existing.id,
-            gameId: existing.gameId,
-            week: existing.week,
-            homeTeam: existing.homeTeam,
-            awayTeam: existing.awayTeam,
+        bets[idx] = BetRecord(
+            id: oldBet.id,
+            gameId: oldBet.gameId,
+            week: oldBet.week,
+            homeTeam: oldBet.homeTeam,
+            awayTeam: oldBet.awayTeam,
             pickedTeam: updatedPick,
-            outcome: existing.outcome,
+            outcome: oldBet.outcome,
             stake: updatedStake,
-            payout: existing.payout,
-            placedAt: existing.placedAt
+            payout: oldBet.payout,
+            placedAt: oldBet.placedAt
         )
 
-        bets[idx] = updated
         persistBets()
     }
-    
+
+    // MARK: - Stats
     var totalWins: Int {
         bets.filter { $0.outcome == .win }.count
     }
-    
+
     var totalLosses: Int {
         bets.filter { $0.outcome == .loss }.count
     }
-    
+
     var winRate: Double {
         let total = totalWins + totalLosses
         guard total > 0 else { return 0 }
         return Double(totalWins) / Double(total)
     }
 }
-

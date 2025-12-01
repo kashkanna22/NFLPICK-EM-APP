@@ -11,12 +11,25 @@ import Observation
 @Observable
 class GameViewModel {
     var selectedWeek: Int = 1
-    let maxWeek: Int = 18
+    let maxWeek: Int = 23
     private var initializedWeek = false
     
     var isLoading = false
     var errorMessage: String?
     var games: [Game] = []
+    
+    var liveGames: [Game] {
+        games.filter { $0.status == "in" }
+    }
+
+    var upcomingGames: [Game] {
+        games.filter { $0.status == "pre" }
+    }
+
+    var finalGames: [Game] {
+        games.filter { $0.status == "post" }
+    }
+
     
     let api = NFLAPIService.shared
     let appState: AppState

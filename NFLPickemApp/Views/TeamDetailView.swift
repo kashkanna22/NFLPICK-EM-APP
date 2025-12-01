@@ -85,7 +85,6 @@ struct TeamDetailView: View {
     }
     
     private func resultLine(_ comp: ESPNTeamScheduleCompetition) -> String {
-        // Build a simple result like "W 27-20 vs Opponent" or "L 20-27 @ Opponent"
         let home = comp.competitors.first { $0.homeAway == "home" }
         let away = comp.competitors.first { $0.homeAway == "away" }
         let homeScore = Int(home?.score ?? "") ?? 0

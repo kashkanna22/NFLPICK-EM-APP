@@ -1,3 +1,9 @@
+//
+//  AppApperanceView.swift
+//  NFLPickemApp
+//
+//  Created by Kashyap Kannajyosula on 11/30/25.
+//
 import SwiftUI
 
 public enum AppearanceModel: String, CaseIterable, Identifiable {
@@ -22,4 +28,20 @@ public enum AppearanceModel: String, CaseIterable, Identifiable {
         case .dark: return .dark
         }
     }
+}
+
+struct AppAppearanceView: View {
+    let appState: AppState
+
+    var body: some View {
+        Rectangle()
+            .fill(Color(.systemBackground))
+            .overlay(
+                Color.clear.background(.ultraThinMaterial)
+            )
+    }
+}
+
+#Preview {
+    AppAppearanceView(appState: AppState())
 }

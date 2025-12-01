@@ -1,3 +1,9 @@
+//
+//  ScoreboardModel.swift
+//  NFLPickemApp
+//
+//  Created by Kashyap Kannajyosula on 11/30/25.
+//
 import Foundation
 
 struct ScoreboardResponse: Decodable {
@@ -12,28 +18,6 @@ struct ScoreboardEvent: Decodable, Identifiable {
 }
 
 extension ScoreboardEvent {
-    private static let dateFormatterInput: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
-    
-    private static let dateFormatterOutput: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy h:mm a"
-        formatter.locale = Locale.current
-        return formatter
-    }()
-    
-    var parsedDate: Date? {
-        return Self.dateFormatterInput.date(from: date)
-    }
-    
-    var formattedDate: String {
-        guard let parsedDate = parsedDate else { return date }
-        return Self.dateFormatterOutput.string(from: parsedDate)
-    }
     
     var primaryCompetition: Competition? {
         return competitions.first
@@ -94,3 +78,4 @@ struct CompetitionStatusType: Decodable {
     let completed: Bool?
     let description: String?
 }
+

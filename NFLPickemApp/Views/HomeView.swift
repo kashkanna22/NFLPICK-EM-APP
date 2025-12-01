@@ -10,10 +10,41 @@ struct HomeView: View {
     @State var appState: AppState
     @State var viewModel: GameViewModel
     @State private var selectedGame: Game? = nil
+    @AppStorage("favoriteTeamId") private var favoriteTeamId: String = ""
     
     init(appState: AppState) {
         self._appState = State(initialValue: appState)
         self._viewModel = State(initialValue: GameViewModel(appState: appState))
+    }
+    
+    // MARK: - Derived collections
+    private var favoriteGames: [Game] {
+        guard !favoriteTeamId.isEmpty else { return [] }
+        return viewModel.games.filter { g in
+            g.homeTeam == favoriteTeamId || g.awayTeam == favoriteTeamId
+        }
+    }
+    private var liveGames: [Game] {
+        viewModel.games.filter { $0.status == "in" }
+            .sorted { $0.date < $1.date }
+    }
+    private var upcomingGames: [Game] {
+        viewModel.games.filter { $0.status == "pre" }
+            .sorted { $0.date < $1.date }
+    }
+    private var finalGames: [Game] {
+        viewModel.games.filter { $0.status == "post" }
+            .sorted { $0.date < $1.date }
+    }
+
+    private func teamColor(for game: Game, home: Bool) -> Color {
+        guard game.status == "post",
+              let hs = game.homeScore,
+              let awayScore = game.awayScore else { return .primary }
+
+        if hs == awayScore { return .primary }
+        let homeWon = hs > awayScore
+        return (home && homeWon) || (!home && !homeWon) ? .green : .red
     }
     
     var body: some View {
@@ -32,18 +63,37 @@ struct HomeView: View {
                 }
                 
                 else {
-                    List(viewModel.games) { game in
-                        VStack(alignment: .leading) {
-                            Text("\(game.awayTeam) @ \(game.homeTeam)")
-                                .font(.headline)
-                            
-                            Text(formatDate(game.date))
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
+                    List {
+                        if !favoriteGames.isEmpty {
+                            Section(header: Text("Favorites")) {
+                                ForEach(favoriteGames) { game in
+                                    gameRow(game)
+                                }
+                            }
                         }
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            selectedGame = game
+
+                        if !liveGames.isEmpty {
+                            Section(header: Text("Live")) {
+                                ForEach(liveGames) { game in
+                                    gameRow(game)
+                                }
+                            }
+                        }
+
+                        if !upcomingGames.isEmpty {
+                            Section(header: Text("Upcoming")) {
+                                ForEach(upcomingGames) { game in
+                                    gameRow(game)
+                                }
+                            }
+                        }
+
+                        if !finalGames.isEmpty {
+                            Section(header: Text("Final")) {
+                                ForEach(finalGames) { game in
+                                    gameRow(game)
+                                }
+                            }
                         }
                     }
                 }
@@ -63,6 +113,16 @@ struct HomeView: View {
                 .padding(.bottom)
             }
             .navigationTitle("NFL Pick’em")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 6) {
+                        Text("🪙")
+                        Text("\(appState.coins)")
+                            .monospacedDigit()
+                    }
+                    .accessibilityLabel("Coins: \(appState.coins)")
+                }
+            }
             .task {
                 await viewModel.loadGames()
             }
@@ -77,6 +137,33 @@ struct HomeView: View {
         output.dateStyle = .medium
         output.timeStyle = .short
         return output.string(from: date)
+    }
+    
+    @ViewBuilder
+    private func gameRow(_ game: Game) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(game.awayTeam)
+                    .foregroundColor(teamColor(for: game, home: false))
+                if let a = game.awayScore, game.status != "pre" {
+                    Text("\(a)").foregroundColor(teamColor(for: game, home: false))
+                }
+                Text("@")
+                    .foregroundColor(.secondary)
+                Text(game.homeTeam)
+                    .foregroundColor(teamColor(for: game, home: true))
+                if let h = game.homeScore, game.status != "pre" {
+                    Text("\(h)").foregroundColor(teamColor(for: game, home: true))
+                }
+            }
+            .font(.headline)
+
+            Text(formatDate(game.date))
+                .font(.subheadline)
+                .foregroundColor(.gray)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { selectedGame = game }
     }
 }
 
